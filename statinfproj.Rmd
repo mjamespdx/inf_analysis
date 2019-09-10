@@ -1,0 +1,159 @@
+---
+title: 'Inferential Analysis: Simulated Exponential Distribution and Hypothesis Testing
+  of Tooth Growth Data'
+author: "M. Sieviec"
+date: "8/23/2018"
+output:
+  html_document:
+      toc: true
+---
+
+```{r setup, echo=F,warning=F,message=F,include=F}
+library(ggplot2)
+library(kableExtra)
+library(reshape2)
+library(printr)
+knitr::opts_chunk$set(echo = TRUE,results="asis",fig.pos = 'H')
+```
+
+## Overview
+
+This report will discuss in part 1 the mean of a simulated exponential distribution versus the theoretical mean. It will also discuss in part 2 hypothesis testing between two different tooth growth supplements of varying dosage.
+
+## Part 1 --- Simulated Exponental Distribution
+### Getting Started
+
+With the objective of observing an exponential distribution with rate $\lambda$ and mean $\frac{1}{\lambda}$, we simulate samples of size n = 40 random exponential variables 1000 times, taking the mean of each complete sample. For our purposes, we have $\lambda$= 0.2, and thus mean = 5. We store these means in the *expmeans* variable. The following code accomplishes this simply, with the first few sample means output:
+
+```{r}
+lambda <- 0.2
+expmeans <- NULL
+for(i in 1:1000) expmeans <- c(expmeans,mean(rexp(40,lambda)))
+head(expmeans)
+```
+
+### Comparison of Means
+
+We now compare the experimental mean and the theoretical mean both graphically (see figure: \ref{fig:fig1}) and numerically (see table: \ref{tab:tab1}):
+
+```{r fig1,fig.align="center",out.height="36%",fig.cap="\\label{fig:fig1}Distribution of Means for Simulated Exponential Variables"}
+qplot(expmeans,binwidth=0.2,geom="histogram") +
+    geom_vline(aes(xintercept = 1/lambda,color="theoretical"),
+               linetype="solid") +
+    geom_vline(aes(xintercept = mean(expmeans),color="sample"),
+               linetype="longdash") +
+    scale_color_manual(values = c(sample = "#7FC97F",theoretical = "black"),
+                       labels = c("Simulated Distibution Mean",
+                                  "Theoretical Distribution Mean"),
+                       guide=guide_legend
+                       (override.aes = list(linetype = c("longdash","solid")))) +
+    xlab("Simluation Means") + ylab("Count") +
+    scale_x_continuous(breaks = 1:8,labels=1:8) +
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          panel.grid.minor.y = element_blank(),
+          panel.border = element_rect(color="black",fill=NA),
+          legend.title = element_blank())
+```
+
+```{r tab1,fig.cap="\\label{tab:tab1}Means"}
+mnames <- c("experimental mean","theoretical mean")
+mvals <- c(round(mean(expmeans),3),1/lambda)
+mtable <- cbind(mnames,mvals)
+colnames(mtable) <- c("Mean Type","Value")
+kable(mtable,booktabs=T,caption="Means") %>% 
+    kable_styling(latex_options = "hold_position")
+```
+
+We see that, indeed, they are quite similar. Theoretically, our experimental mean would converge to 5 with infinite tests.
+
+### Comparison of Variances
+
+Comparing the variance of our experimental distribution and that of the theoretical distribution $(\frac{1}{\lambda})^2/n$ also shows a distinct similarity, again with better convergence as a result of more tests (see table: \ref{tab:table2}):
+
+```{r table2,fig.cap="\\label{tab:table2}Variance"}
+vnames <- c("experimental","theoretical")
+vvals <- c(round(var(expmeans),3),(1/lambda)^2/40)
+vtable <- cbind(vnames,vvals)
+colnames(vtable) <- c("Variance Type","Value")
+kable(vtable,booktabs=T,caption="Variances") %>% 
+    kable_styling(latex_options = "hold_position")
+```
+
+### Analysis of Distribution
+
+We compare the distribution of our simulated means versus a theorectical normal distribution (see figure: \ref{fig:fig2}).
+
+```{r fig2,fig.align="center",out.height="36%",fig.cap="\\label{fig:fig2}Q-Q Plot of Simulated Exponential Data"}
+ggplot(data.frame(expmeans),aes(sample=expmeans,color = "sample")) + 
+    stat_qq(alpha=0.6) +
+    geom_abline(aes(intercept = mean(expmeans),slope = sd(expmeans),
+                    color = "model")) +
+    xlab("Normal Model Quantiles") +
+    ylab("Simulation Quantiles") +
+    scale_color_manual(values = c(sample = "#F0027F",
+                                  model = "black"),
+                       labels = c("Simulation Mean","Normal Model"),
+                       guide=guide_legend
+                       (override.aes = list(shape = c(1,NA),
+                                            linetype = c("blank","solid"),
+                                            color = c("#F0027F","black")))) +
+    scale_y_continuous(breaks = 1:ceiling(max(expmeans)),
+                       labels = 1:ceiling(max(expmeans))) +
+    theme(panel.grid.minor.x = element_blank(),
+          panel.grid.minor.y = element_blank(),
+          panel.border = element_rect(color="black",fill=NA),
+          legend.title = element_blank())
+```
+
+Based on the Q-Q plot, we see that the distribution for our simulated exponential sample means is roughly normal.
+
+## Part 2 --- Hypothesis Testing of Tooth Growth Data
+### Getting Started
+For this portion, we load the *ToothGrowth* dataset:
+
+```{r result="asis"}
+library(datasets)
+data("ToothGrowth")
+```
+
+In the dataset, there are 3 columns, one for measurement data, one for supplement type, and the last for dosage. We see that there appears to be some disparity between the efficacy of the supplements for at 0.5 and 1.0 dosages based on a cursory look at the differences in means by dosage:
+
+```{r}
+with(ToothGrowth,tapply(len,list(supp,dose),mean))
+```
+
+We hypothesize that the supplement "OJ" has a higher mean growth overall.
+
+###Hypothesis Testing
+
+We start with a t-test of the data:
+
+```{r table3,fig.cap="\\label{tab:table3}T-Test 1"}
+ttable1 <- t.test(ToothGrowth$len[ToothGrowth$supp=="OJ"],
+       ToothGrowth$len[ToothGrowth$supp=="VC"])
+tablevals1 <- c(ttable1[[1]][1],ttable1[[2]][1],ttable1[3][1],ttable1[[4]][1:2])
+testlist1 <- NULL
+for (i in 1:length(tablevals1)) {testlist1 <- c(testlist1,tablevals1[[i]])}
+testlist1 <- lapply(testlist1,round,3)
+tablenames <- c(names(ttable1[[1]]),names(ttable1[[2]]),names(ttable1[3]),
+                      "conf.int.lb","conf.int.ub")
+testlist1 <- cbind(tablenames,testlist1)
+kable(testlist1,booktabs=T,digits=3,caption="T-Test Results, dose = 0.5",
+      col.names=c("Statistic","Value")) %>% 
+    kable_styling(latex_options = "hold_position")
+```
+
+We see that the 95% confidence interval (denoted by *conf.int.lb* and *conf.int.ub*) *does* contain 0, so we fail to reject the null hypothesis that the supplements have the same mean effect overall. It may be of interest to run further analysis for the separate dosages.
+
+## Notes
+
+This analysis was generated using OSX 10.13.5, RStudio v1.1.453 and the 
+following packages:
+
+* ggplot2 v3.0.0
+* kableExtra v0.9.0
+* knitr v1.20
+* printr v0.1
+* reshape2 v1.4.3
+
