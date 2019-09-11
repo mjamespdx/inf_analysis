@@ -9,10 +9,9 @@ output:
 ---
 
 ```{r setup, echo=F,warning=F,message=F,include=F}
+library(tidyverse)
 library(ggplot2)
 library(kableExtra)
-library(reshape2)
-library(printr)
 knitr::opts_chunk$set(echo = TRUE,results="asis",fig.pos = 'H')
 ```
 
@@ -23,12 +22,12 @@ This report will discuss in part 1 the mean of a simulated exponential distribut
 ## Part 1 --- Simulated Exponental Distribution
 ### Getting Started
 
-With the objective of observing an exponential distribution with rate $\lambda$ and mean $\frac{1}{\lambda}$, we simulate samples of size n = 40 random exponential variables 1000 times, taking the mean of each complete sample. For our purposes, we have $\lambda$= 0.2, and thus mean = 5. We store these means in the *expmeans* variable. The following code accomplishes this simply, with the first few sample means output:
+With the objective of observing an exponential distribution with parameter $\lambda$ and mean $\frac{1}{\lambda}$, we simulate samples of size n = 40 random exponential variables 1000 times, taking the mean of each complete sample. For our purposes, we have $\lambda$= 0.2, and thus mean = 5. We store these means in the *expmeans* variable. The following code accomplishes this simply, with the first few sample means output:
 
 ```{r}
 lambda <- 0.2
 expmeans <- NULL
-for(i in 1:1000) expmeans <- c(expmeans,mean(rexp(40,lambda)))
+for(i in 1:1000) expmeans <- append(expmeans,mean(rexp(40,lambda)))
 head(expmeans)
 ```
 
@@ -36,7 +35,7 @@ head(expmeans)
 
 We now compare the experimental mean and the theoretical mean both graphically (see figure: \ref{fig:fig1}) and numerically (see table: \ref{tab:tab1}):
 
-```{r fig1,fig.align="center",out.height="36%",fig.cap="\\label{fig:fig1}Distribution of Means for Simulated Exponential Variables"}
+```{r fig1,fig.align="center",out.height="36%",fig.cap="\\label{fig:fig1}Figure 1-1: Distribution of Means for Simulated Exponential Variables"}
 qplot(expmeans,binwidth=0.2,geom="histogram") +
     geom_vline(aes(xintercept = 1/lambda,color="theoretical"),
                linetype="solid") +
@@ -61,8 +60,8 @@ mnames <- c("experimental mean","theoretical mean")
 mvals <- c(round(mean(expmeans),3),1/lambda)
 mtable <- cbind(mnames,mvals)
 colnames(mtable) <- c("Mean Type","Value")
-kable(mtable,booktabs=T,caption="Means") %>% 
-    kable_styling(latex_options = "hold_position")
+kable(mtable,booktabs=T,caption="Table 1-1: Means of simulated data") %>% 
+    kable_styling(full_width = F)
 ```
 
 We see that, indeed, they are quite similar. Theoretically, our experimental mean would converge to 5 with infinite tests.
@@ -76,15 +75,15 @@ vnames <- c("experimental","theoretical")
 vvals <- c(round(var(expmeans),3),(1/lambda)^2/40)
 vtable <- cbind(vnames,vvals)
 colnames(vtable) <- c("Variance Type","Value")
-kable(vtable,booktabs=T,caption="Variances") %>% 
-    kable_styling(latex_options = "hold_position")
+kable(vtable,booktabs=T,caption="Table 1-2: Variances of simulated data") %>% 
+    kable_styling(full_width = F)
 ```
 
 ### Analysis of Distribution
 
 We compare the distribution of our simulated means versus a theorectical normal distribution (see figure: \ref{fig:fig2}).
 
-```{r fig2,fig.align="center",out.height="36%",fig.cap="\\label{fig:fig2}Q-Q Plot of Simulated Exponential Data"}
+```{r fig2,fig.align="center",out.height="36%",fig.cap="\\label{fig:fig2}Figure 1-2: Q-Q Plot of Simulated Exponential Data"}
 ggplot(data.frame(expmeans),aes(sample=expmeans,color = "sample")) + 
     stat_qq(alpha=0.6) +
     geom_abline(aes(intercept = mean(expmeans),slope = sd(expmeans),
@@ -110,50 +109,122 @@ Based on the Q-Q plot, we see that the distribution for our simulated exponentia
 
 ## Part 2 --- Hypothesis Testing of Tooth Growth Data
 ### Getting Started
-For this portion, we load the *ToothGrowth* dataset:
+For this portion, we will work with the *ToothGrowth* dataset, the description of which is as follows:
 
-```{r result="asis"}
-library(datasets)
-data("ToothGrowth")
-```
+> The response is the length of odontoblasts (cells responsible for tooth growth) in 60 guinea pigs. Each animal received one of three dose levels of vitamin C (0.5, 1, and 2 mg/day) by one of two delivery methods, orange juice or ascorbic acid (a form of vitamin C and coded as VC).
 
-In the dataset, there are 3 columns, one for measurement data, one for supplement type, and the last for dosage. We see that there appears to be some disparity between the efficacy of the supplements for at 0.5 and 1.0 dosages based on a cursory look at the differences in means by dosage:
+There are 3 variables in the data: len (growth length), supp (supplement type), and dose (dosage amount).
 
 ```{r}
-with(ToothGrowth,tapply(len,list(supp,dose),mean))
+library(datasets)
+data("ToothGrowth")
+ToothGrowth %>% group_by(supp, dose) %>% 
+  summarise(mean(len)) %>% 
+  kable(booktabs = T, caption = 'Table 2-1: Mean Growth by Supplement and Dose',
+        col.names = c('Supplement', 'Dose', 'Mean Growth')) %>%
+  kable_styling(full_width = F)
 ```
 
-We hypothesize that the supplement "OJ" has a higher mean growth overall.
+Based on the table, we hypothesize that the orange juice supplement has a higher mean growth overall.
 
 ###Hypothesis Testing
 
-We start with a t-test of the data:
-
-```{r table3,fig.cap="\\label{tab:table3}T-Test 1"}
-ttable1 <- t.test(ToothGrowth$len[ToothGrowth$supp=="OJ"],
-       ToothGrowth$len[ToothGrowth$supp=="VC"])
-tablevals1 <- c(ttable1[[1]][1],ttable1[[2]][1],ttable1[3][1],ttable1[[4]][1:2])
-testlist1 <- NULL
-for (i in 1:length(tablevals1)) {testlist1 <- c(testlist1,tablevals1[[i]])}
-testlist1 <- lapply(testlist1,round,3)
-tablenames <- c(names(ttable1[[1]]),names(ttable1[[2]]),names(ttable1[3]),
-                      "conf.int.lb","conf.int.ub")
-testlist1 <- cbind(tablenames,testlist1)
-kable(testlist1,booktabs=T,digits=3,caption="T-Test Results, dose = 0.5",
-      col.names=c("Statistic","Value")) %>% 
-    kable_styling(latex_options = "hold_position")
+```{r}
+ToothGrowth %>% group_by(supp) %>% 
+  summarise(n()) %>%
+  kable(caption = 'Table 2-2: Sample Sizes by Supplement',
+        col.names = c('Supplement', 'Samples')) %>%
+  kable_styling(full_width = F)
 ```
 
-We see that the 95% confidence interval (denoted by *conf.int.lb* and *conf.int.ub*) *does* contain 0, so we fail to reject the null hypothesis that the supplements have the same mean effect overall. It may be of interest to run further analysis for the separate dosages.
+Since n = 30 for both groups, we can start with a t-test of the data with $\alpha$ = 0.05:
+
+```{r table3,fig.cap="\\label{tab:table3}T-Test 1"}
+ttable <- t.test(ToothGrowth$len[ToothGrowth$supp=="OJ"],
+       ToothGrowth$len[ToothGrowth$supp=="VC"])
+tablevals <- c(ttable[[1]][1],ttable[[2]][1],ttable[3][1])
+testlist <- NULL
+for (i in 1:length(tablevals)) {testlist <- c(testlist,tablevals[[i]])}
+testlist <- lapply(testlist,round,3)
+tablenames <- c(names(ttable[[1]]),names(ttable[[2]]),names(ttable[3]))
+testlist <- cbind(tablenames,testlist)
+kable(testlist,booktabs=T,digits=3,caption="Table 2-3: T-Test Results",
+      col.names=c("Statistic","Value")) %>% 
+    kable_styling(full_width = F)
+```
+
+We see that the p > 0.05, so we fail to reject the null hypothesis that the supplements have the same mean effect overall. However, we see that there are really 2 distinct groupings--supplement and dose--so we will conduct a two-way ANOVA on the data.
+
+### ANOVA
+
+```{r}
+ToothGrowth$dose <- ToothGrowth$dose %>% factor()
+anova.table <- aov(len ~ supp + dose, ToothGrowth) %>% 
+  summary() %>% 
+  .[[1]]
+anova.table %>% kable(caption = 'Table 2-4: ANOVA of Growth by Supplement and Dose') %>%
+  kable_styling(full_width = F)
+```
+
+With see that both supplement and dose are significant at the $\alpha$ = 0.05 level.
+
+### Paired T-Tests
+
+```{r}
+data("ToothGrowth")
+ToothGrowth %>% group_by(supp, dose) %>% 
+  summarise(n()) %>% 
+  kable(booktabs = T, caption = 'Table 2-5: Sizes of Subsets',
+        col.names = c('Supplement', 'Dose', 'Sample size')) %>% 
+  kable_styling(full_width = F)
+```
+
+We see that there is an equal number of samples across each subset, so we check QQ plots for normality and boxplots for outliers.
+
+```{r, fig.align = 'center', fig.cap="\\label{fig:fig3}Figure 2-1: Q-Q Plots of Growth Data by Supplement and Dose"}
+ggplot(ToothGrowth, aes(sample = len, color = 'sample')) + 
+  stat_qq(alpha = 0.7) + 
+  stat_qq_line(color = "black") + 
+  scale_color_manual(values = c(sample = "#F0027F")) + 
+  facet_grid(cols = vars(supp), rows = vars(dose)) +
+  theme(legend.position = 'none')
+```
+
+```{r, fig.align = 'center', fig.cap="\\label{fig:fig3}Figure 2-2: Boxplots of Growth Data by Supplement and Dose"}
+ggplot(ToothGrowth, aes(x = factor(dose), y = len)) + 
+  geom_boxplot(aes(fill = factor(supp))) + 
+  facet_grid(cols = vars(supp)) +
+  xlab("dose") +
+  scale_fill_manual(values = c("#E69F00", "#56B4E9")) +
+  theme(legend.position = 'none')
+```
+
+There are 2 outliers overall, but we will just continue with paired t-tests as the sample sizes are small and roughly normal. We will employ the Bonferroni correction to assess significance.
+
+```{r}
+p1 <- t.test(len ~ supp, ToothGrowth[ToothGrowth$dose == 0.5,], paired = T)$p.value
+p2 <- t.test(len ~ supp, ToothGrowth[ToothGrowth$dose == 1,], paired = T)$p.value
+p3 <- t.test(len ~ supp, ToothGrowth[ToothGrowth$dose == 2,], paired = T)$p.value
+
+pvals <- c(p1, p2, p3) %>% round(., 3)
+
+table <- bind_cols('P-value' = pvals,
+                   'Dose' = unique(ToothGrowth$dose),
+                   'p < 0.5/3' = (pvals < 0.5/3))
+table %>% kable(booktabs = T, caption = 'Table 2-6: Paired T-Test Results') %>% 
+  kable_styling(full_width = F)
+```
+
+### Conclusion
+
+There is evidence to suggest that the mean tooth growth for the orange juice supplement is higher at both the 0.5mg/day and 1mg/day dosages than for the ascorbic acid supplement. We did not find evidence to suggest a difference at the 2mg/day dosage. Depending on practicality, it may make sense to simply prescribe a 2mg/day dosage of either supplement as that amount granted the highest mean growth for both.
 
 ## Notes
 
-This analysis was generated using OSX 10.13.5, RStudio v1.1.453 and the 
+This analysis was generated using OSX 10.14.5, RStudio v1.1.463 and the 
 following packages:
 
-* ggplot2 v3.0.0
-* kableExtra v0.9.0
-* knitr v1.20
-* printr v0.1
-* reshape2 v1.4.3
+* ggplot2 v3.1.0
+* kableExtra v1.0.1
+* knitr v1.22
 
